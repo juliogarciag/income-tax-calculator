@@ -1,7 +1,7 @@
 import useIncomeTaxCalculation, {
   CalculationData,
 } from "./useIncomeTaxCalculation";
-import useInputState from "./useInputState";
+import useInputState, { UseInputStateReturn } from "./useInputState";
 
 const TAX_BRACKETS_TABLE = [
   { amountInUIT: 5, rate: 0.08 },
@@ -11,102 +11,151 @@ const TAX_BRACKETS_TABLE = [
   { amountInUIT: Infinity, rate: 0.3 },
 ];
 
+const UIT_BY_YEAR = {
+  "2012": 3650,
+  "2013": 3700,
+  "2014": 3800,
+  "2015": 3850,
+  "2016": 3950,
+  "2017": 4050,
+  "2018": 4150,
+  "2019": 4200,
+  "2020": 4300,
+  "2021": 4400,
+  "2022": 4600,
+} as const;
+
+const AVAILABLE_YEARS = Object.keys(UIT_BY_YEAR);
+type AvailableYears = keyof typeof UIT_BY_YEAR;
+
 function App() {
-  const UIT = 4400;
-  const yearlyIncomeAmount = useInputState(
+  const yearlyIncomeAmountInput = useInputState(
     Number(process.env.REACT_APP_TEST_YEARLY_INCOME_VALUE ?? 0),
   );
-  const yearlyIncomeCurrency = useInputState<"USD" | "PEN">("PEN");
+  const yearInput = useInputState<AvailableYears>("2021");
 
   const calculation = useIncomeTaxCalculation({
-    uit: UIT,
-    grossYearlyIncome: yearlyIncomeAmount.value,
+    uit: UIT_BY_YEAR[yearInput.value],
+    grossYearlyIncome: yearlyIncomeAmountInput.value,
     taxBracketsTable: TAX_BRACKETS_TABLE,
   });
-  const { deductions, taxableAmounts } = calculation;
 
   return (
     <div className="p-4">
-      <div className="flex items-center">
-        <label className="mr-4" htmlFor="yearlyIncomeAmount">
-          ¿Cuánto ganaste el año 2021?
-        </label>
-        <select
-          className="mr-4 border p-2 text-base"
-          id="yearlyIncomeCurrency"
-          value={yearlyIncomeCurrency.htmlValue}
-          onChange={yearlyIncomeCurrency.handleChange}
-        >
-          <option value="USD">Dólares</option>
-          <option value="PEN">Soles</option>
-        </select>
-        <input
-          type="number"
-          id="yearlyIncomeAmount"
-          className="border text-base p-2 w-32 text-right"
-          value={yearlyIncomeAmount.htmlValue}
-          onChange={yearlyIncomeAmount.handleChange}
-        />
-      </div>
+      <CalculationFields
+        yearInput={yearInput}
+        yearlyIncomeAmountInput={yearlyIncomeAmountInput}
+      />
       <div className="w-full h-px border-b inline-block" />
-      <UITInfoBlock uit={UIT} />
+      <UITInfoBlock year={yearInput.value} />
       <div className="mt-4 max-w-2xl border p-4 space-y-6">
         <h2 className="text-xl border-b border-gray-700 inline-flex">
           Monto Imponible
         </h2>
-        <div className="mt-8 space-y-6">
-          <div className="text-lg flex items-center">
-            <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
-              <h3 className="w-full text-center">1</h3>
-            </div>
-            <div className="mr-3">
-              <div className="mr-2">Deducción del 20%</div>
-              <div className="text-base text-gray-700">
-                hasta {deductions.first.limitInUIT} UIT (S/.{" "}
-                {deductions.first.limit})
-              </div>
-            </div>
-            <div className="ml-auto font-semibold text-xl text-right">
-              <div className="py-1">
-                S/. {taxableAmounts.afterFirstDeduction}
-              </div>
-              <div className="font-normal text-base">
-                S/. {taxableAmounts.initialAmount} - S/.{" "}
-                {deductions.first.deductedAmount}
-              </div>
-            </div>
-          </div>
-          <div className="text-lg flex items-center">
-            <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
-              <h3 className="w-full text-center">2</h3>
-            </div>
-            <div className="mr-3">
-              <div className="mr-2">
-                Deducción de {deductions.second.amountInUIT} UIT{" "}
-                <span className="text-base text-gray-700">
-                  (S/. {deductions.second.expectedAmount})
-                </span>
-              </div>
-              <div className="text-base text-gray-700">
-                hasta S/. {taxableAmounts.afterFirstDeduction}
-              </div>
-            </div>
-            <div className="ml-auto font-semibold text-xl text-right">
-              <div className="py-1">
-                S/. {taxableAmounts.afterSecondDeduction}
-              </div>
-              <div className="font-normal text-base">
-                S/. {taxableAmounts.afterFirstDeduction} - S/.{" "}
-                {deductions.second.deductedAmount}
-              </div>
-            </div>
-          </div>
-        </div>
+        <TaxableAmount calculation={calculation} />
 
         <h2 className="text-xl border-b border-gray-700 inline-flex">
           Impuesto a la Renta
         </h2>
         <TaxBrackets calculation={calculation} />
+      </div>
+    </div>
+  );
+}
+
+function TaxableAmount({ calculation }: { calculation: CalculationData }) {
+  const { deductions, taxableAmounts } = calculation;
+
+  return (
+    <div className="mt-8 space-y-6">
+      <div className="text-lg flex items-center">
+        <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
+          <h3 className="w-full text-center">1</h3>
+        </div>
+        <div className="mr-3">
+          <div className="mr-2">Deducción del 20%</div>
+          <div className="text-base text-gray-700">
+            hasta {deductions.first.limitInUIT} UIT (S/.{" "}
+            {deductions.first.limit})
+          </div>
+        </div>
+        <div className="ml-auto font-semibold text-xl text-right">
+          <div className="py-1">S/. {taxableAmounts.afterFirstDeduction}</div>
+          <div className="font-normal text-base">
+            S/. {taxableAmounts.initialAmount} - S/.{" "}
+            {deductions.first.deductedAmount}
+          </div>
+        </div>
+      </div>
+      <div className="text-lg flex items-center">
+        <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
+          <h3 className="w-full text-center">2</h3>
+        </div>
+        <div className="mr-3">
+          <div className="mr-2">
+            Deducción de {deductions.second.amountInUIT} UIT{" "}
+            <span className="text-base text-gray-700">
+              (S/. {deductions.second.expectedAmount})
+            </span>
+          </div>
+          <div className="text-base text-gray-700">
+            hasta S/. {taxableAmounts.afterFirstDeduction}
+          </div>
+        </div>
+        <div className="ml-auto font-semibold text-xl text-right">
+          <div className="py-1">S/. {taxableAmounts.afterSecondDeduction}</div>
+          <div className="font-normal text-base">
+            S/. {taxableAmounts.afterFirstDeduction} - S/.{" "}
+            {deductions.second.deductedAmount}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalculationFields({
+  yearInput,
+  yearlyIncomeAmountInput,
+}: {
+  yearInput: UseInputStateReturn<AvailableYears>;
+  yearlyIncomeAmountInput: UseInputStateReturn<number>;
+}) {
+  return (
+    <div className="flex-col space-y-2">
+      <div className="flex items-center w-80 justify-between">
+        <label className="mr-4" htmlFor="year">
+          Año
+        </label>
+        <select
+          id="year"
+          className="border text-base p-2 w-32 text-right"
+          value={yearInput.htmlValue}
+          onChange={yearInput.handleChange}
+        >
+          {AVAILABLE_YEARS.map((year) => {
+            return (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+      <div className="flex items-center w-80 justify-between">
+        <label className="mr-4" htmlFor="yearlyIncomeAmount">
+          Total del año {yearInput.value}
+        </label>
+        <div>
+          <span className="px-1">S/. </span>
+          <input
+            type="number"
+            id="yearlyIncomeAmount"
+            className="border text-base p-2 w-32 text-right"
+            value={yearlyIncomeAmountInput.htmlValue}
+            onChange={yearlyIncomeAmountInput.handleChange}
+          />
+        </div>
       </div>
     </div>
   );
@@ -152,7 +201,7 @@ function TaxBrackets({ calculation }: { calculation: CalculationData }) {
   );
 }
 
-function UITInfoBlock({ uit }: { uit: number }) {
+function UITInfoBlock({ year }: { year: AvailableYears }) {
   return (
     <div className="border p-2 mt-4 inline-flex items-center bg-yellow-50">
       <span className="p-2 text-black bg-yellow-400 font-mono mr-3 font-bold">
@@ -168,10 +217,10 @@ function UITInfoBlock({ uit }: { uit: number }) {
         >
           UIT
         </a>{" "}
-        para el ejercicio del año 2021:
+        para el ejercicio del año {year}:
       </span>{" "}
       <span className="ml-3 p-2 font-semibold border border-dashed bg-yellow-200">
-        S/. {uit}
+        S/. {UIT_BY_YEAR[year]}
       </span>
     </div>
   );

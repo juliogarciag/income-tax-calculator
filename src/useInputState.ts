@@ -58,4 +58,15 @@ function useInputState<Value extends string | number | Date>(
   };
 }
 
+class Wrapper<T extends string | number | Date> {
+  // wrapped has no explicit return type so we can infer it
+  wrapped(e: T) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useInputState<T>(e);
+  }
+}
+
+export type UseInputStateReturn<Value extends string | number | Date> =
+  ReturnType<Wrapper<Value>["wrapped"]>;
+
 export default useInputState;
