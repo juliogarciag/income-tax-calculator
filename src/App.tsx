@@ -1,3 +1,4 @@
+import React, { ReactNode } from "react";
 import useIncomeTaxCalculation, {
   CalculationData,
 } from "./useIncomeTaxCalculation";
@@ -50,9 +51,9 @@ function App() {
       <UITInfoBlock year={yearInput.value} />
       <div className="mt-4 max-w-2xl border p-4 space-y-6">
         <h2 className="text-xl border-b border-gray-700 inline-flex">
-          Monto Imponible
+          Deducciones
         </h2>
-        <TaxableAmount calculation={calculation} />
+        <TaxDeductions calculation={calculation} />
 
         <h2 className="text-xl border-b border-gray-700 inline-flex">
           Impuesto a la Renta
@@ -63,53 +64,89 @@ function App() {
   );
 }
 
-function TaxableAmount({ calculation }: { calculation: CalculationData }) {
+function TaxDeductionListItem({
+  number,
+  title,
+  subtitle,
+  content,
+  subContent,
+}: {
+  number: number;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  content: ReactNode;
+  subContent?: ReactNode;
+}) {
+  return (
+    <div className="text-lg flex items-center">
+      <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
+        <h3 className="w-full text-center">{number}</h3>
+      </div>
+      <div className="mr-3">
+        <div className="mr-2">{title}</div>
+        {subtitle ? (
+          <div className="text-base text-gray-700">{subtitle}</div>
+        ) : null}
+      </div>
+      <div className="ml-auto font-semibold text-xl text-right">
+        <div className="py-1">{content}</div>
+        {subContent}
+      </div>
+    </div>
+  );
+}
+
+function TaxDeductions({ calculation }: { calculation: CalculationData }) {
   const { deductions, taxableAmounts } = calculation;
 
   return (
     <div className="mt-8 space-y-6">
-      <div className="text-lg flex items-center">
-        <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
-          <h3 className="w-full text-center">1</h3>
-        </div>
-        <div className="mr-3">
-          <div className="mr-2">Deducción del 20%</div>
-          <div className="text-base text-gray-700">
-            hasta {deductions.first.limitInUIT} UIT (S/.{" "}
-            {deductions.first.limit})
-          </div>
-        </div>
-        <div className="ml-auto font-semibold text-xl text-right">
-          <div className="py-1">S/. {taxableAmounts.afterFirstDeduction}</div>
-          <div className="font-normal text-base">
-            S/. {taxableAmounts.initialAmount} - S/.{" "}
-            {deductions.first.deductedAmount}
-          </div>
-        </div>
-      </div>
-      <div className="text-lg flex items-center">
-        <div className="border bg-teal-600 text-white inline-flex w-8 h-8 items-center rounded-full mr-3">
-          <h3 className="w-full text-center">2</h3>
-        </div>
-        <div className="mr-3">
-          <div className="mr-2">
+      <TaxDeductionListItem
+        number={1}
+        title="Deducción del 20%"
+        subtitle={
+          <>
+            hasta {deductions.first.limitInUIT} UIT (S/ {deductions.first.limit}
+            )
+          </>
+        }
+        content={<>- S/ {deductions.first.deductedAmount}</>}
+      />
+      <TaxDeductionListItem
+        number={2}
+        title={
+          <>
             Deducción de {deductions.second.amountInUIT} UIT{" "}
             <span className="text-base text-gray-700">
-              (S/. {deductions.second.expectedAmount})
+              (S/ {deductions.second.expectedAmount})
             </span>
-          </div>
-          <div className="text-base text-gray-700">
-            hasta S/. {taxableAmounts.afterFirstDeduction}
-          </div>
-        </div>
-        <div className="ml-auto font-semibold text-xl text-right">
-          <div className="py-1">S/. {taxableAmounts.afterSecondDeduction}</div>
+          </>
+        }
+        subtitle={<>hasta S/ {taxableAmounts.afterFirstDeduction}</>}
+        content={<>- S/ {deductions.second.deductedAmount}</>}
+      />
+      <TaxDeductionListItem
+        number={3}
+        title="Total a deducir"
+        content={
+          <>
+            - S/{" "}
+            {deductions.first.deductedAmount + deductions.second.deductedAmount}
+          </>
+        }
+      />
+
+      <TaxDeductionListItem
+        number={4}
+        title="Monto Imponible"
+        content={<>S/ {taxableAmounts.finalAmount}</>}
+        subContent={
           <div className="font-normal text-base">
-            S/. {taxableAmounts.afterFirstDeduction} - S/.{" "}
-            {deductions.second.deductedAmount}
+            S/ {taxableAmounts.initialAmount} - S/{" "}
+            {deductions.first.deductedAmount + deductions.second.deductedAmount}
           </div>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 }
@@ -147,7 +184,7 @@ function CalculationFields({
           Total del año {yearInput.value}
         </label>
         <div>
-          <span className="px-1">S/. </span>
+          <span className="px-1">S/ </span>
           <input
             type="number"
             id="yearlyIncomeAmount"
@@ -181,9 +218,9 @@ function TaxBrackets({ calculation }: { calculation: CalculationData }) {
               <td className="pr-2 py-1">{rangeToText(result.rangeInUIT)}</td>
               <td className="pr-2 py-1">{Math.round(result.rate * 100)}%</td>
               <td className="pr-2 py-1 text-right">
-                S/. {result.taxableAmount}
+                S/ {result.taxableAmount}
               </td>
-              <td className="pr-2 py-1 text-right">S/. {result.taxes}</td>
+              <td className="pr-2 py-1 text-right">S/ {result.taxes}</td>
             </tr>
           );
         })}
@@ -193,7 +230,7 @@ function TaxBrackets({ calculation }: { calculation: CalculationData }) {
           <td></td>
           <td></td>
           <td className="text-right pt-4 font-semibold">
-            S/. {calculation.totalTaxes}
+            S/ {calculation.totalTaxes}
           </td>
         </tr>
       </tbody>
@@ -220,7 +257,7 @@ function UITInfoBlock({ year }: { year: AvailableYears }) {
         para el ejercicio del año {year}:
       </span>{" "}
       <span className="ml-3 p-2 font-semibold border border-dashed bg-yellow-200">
-        S/. {UIT_BY_YEAR[year]}
+        S/ {UIT_BY_YEAR[year]}
       </span>
     </div>
   );
