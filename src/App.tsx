@@ -106,11 +106,11 @@ function TaxDeductions({ calculation }: { calculation: CalculationData }) {
         title="Deducción del 20%"
         subtitle={
           <>
-            hasta {deductions.first.limitInUIT} UIT (S/ {deductions.first.limit}
-            )
+            hasta {deductions.first.limitInUIT} UIT (
+            {formatMoney(deductions.first.limit)})
           </>
         }
-        content={<>- S/ {deductions.first.deductedAmount}</>}
+        content={<>{formatMoney(-deductions.first.deductedAmount)}</>}
       />
       <TaxDeductionListItem
         number={2}
@@ -118,32 +118,32 @@ function TaxDeductions({ calculation }: { calculation: CalculationData }) {
           <>
             Deducción de {deductions.second.amountInUIT} UIT{" "}
             <span className="text-base text-gray-700">
-              (S/ {deductions.second.expectedAmount})
+              ({formatMoney(deductions.second.expectedAmount)})
             </span>
           </>
         }
-        subtitle={<>hasta S/ {taxableAmounts.afterFirstDeduction}</>}
-        content={<>- S/ {deductions.second.deductedAmount}</>}
+        subtitle={<>hasta {formatMoney(taxableAmounts.afterFirstDeduction)}</>}
+        content={<>{formatMoney(-deductions.second.deductedAmount)}</>}
       />
       <TaxDeductionListItem
         number={3}
         title="Total a deducir"
-        content={
-          <>
-            - S/{" "}
-            {deductions.first.deductedAmount + deductions.second.deductedAmount}
-          </>
-        }
+        content={formatMoney(
+          -(deductions.first.deductedAmount + deductions.second.deductedAmount),
+        )}
       />
 
       <TaxDeductionListItem
         number={4}
         title="Monto Imponible"
-        content={<>S/ {taxableAmounts.finalAmount}</>}
+        content={formatMoney(taxableAmounts.finalAmount)}
         subContent={
           <div className="font-normal text-base">
-            S/ {taxableAmounts.initialAmount} - S/{" "}
-            {deductions.first.deductedAmount + deductions.second.deductedAmount}
+            {formatMoney(taxableAmounts.initialAmount)} -{" "}
+            {formatMoney(
+              deductions.first.deductedAmount +
+                deductions.second.deductedAmount,
+            )}
           </div>
         }
       />
@@ -218,9 +218,11 @@ function TaxBrackets({ calculation }: { calculation: CalculationData }) {
               <td className="pr-2 py-1">{rangeToText(result.rangeInUIT)}</td>
               <td className="pr-2 py-1">{Math.round(result.rate * 100)}%</td>
               <td className="pr-2 py-1 text-right">
-                S/ {result.taxableAmount}
+                {formatMoney(result.taxableAmount)}
               </td>
-              <td className="pr-2 py-1 text-right">S/ {result.taxes}</td>
+              <td className="pr-2 py-1 text-right">
+                {formatMoney(result.taxes)}
+              </td>
             </tr>
           );
         })}
@@ -230,7 +232,7 @@ function TaxBrackets({ calculation }: { calculation: CalculationData }) {
           <td></td>
           <td></td>
           <td className="text-right pt-4 font-semibold">
-            S/ {calculation.totalTaxes}
+            {formatMoney(calculation.totalTaxes)}
           </td>
         </tr>
       </tbody>
@@ -257,7 +259,7 @@ function UITInfoBlock({ year }: { year: AvailableYears }) {
         para el ejercicio del año {year}:
       </span>{" "}
       <span className="ml-3 p-2 font-semibold border border-dashed bg-yellow-200">
-        S/ {UIT_BY_YEAR[year]}
+        {formatMoney(UIT_BY_YEAR[year])}
       </span>
     </div>
   );
@@ -271,6 +273,13 @@ function rangeToText({ min, max }: { min: number; max: number }) {
     return `Desde ${min} UIT`;
   }
   return `${min} UIT → ${max} UIT`;
+}
+
+function formatMoney(amount: number) {
+  if (amount < 0) {
+    return `- S/ ${Math.abs(amount).toLocaleString()}`;
+  }
+  return `S/ ${amount.toLocaleString()}`;
 }
 
 export default App;
