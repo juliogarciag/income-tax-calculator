@@ -419,16 +419,6 @@ function UITInfoBlock({ year }: { year: AvailableYears }) {
   );
 }
 
-function rangeToText({ min, max }: { min: number; max: number }) {
-  if (min === 0) {
-    return `Hasta ${max} UIT`;
-  }
-  if (max === Infinity) {
-    return `Desde ${min} UIT`;
-  }
-  return `${min} → ${max} UIT`;
-}
-
 function formatMoney(amount: number) {
   if (amount < 0) {
     return `- S/ ${Math.abs(amount).toLocaleString()}`;
