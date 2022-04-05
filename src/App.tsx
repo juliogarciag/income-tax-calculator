@@ -43,14 +43,16 @@ function App() {
   });
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 max-w-4xl mx-auto flex-row space-y-4">
+      <h1 className="text-3xl">Calculadora del Impuesto a la Renta en 🇵🇪</h1>
+      <div className="w-full h-px border-t border-gray-300" />
       <CalculationFields
         yearInput={yearInput}
         yearlyIncomeAmountInput={yearlyIncomeAmountInput}
       />
-      <div className="w-full h-px border-b inline-block" />
+      <div className="w-full h-px border-b border-gray-300" />
       <UITInfoBlock year={yearInput.value} />
-      <div className="mt-4 border p-4 space-y-6">
+      <div className="border border-gray-400 p-4 space-y-6">
         <h2 className="text-xl border-b border-gray-700 inline-flex">
           Deducciones
         </h2>
@@ -60,11 +62,6 @@ function App() {
           Distribución del Monto Imponible
         </h2>
         <TaxableAmountDistributionTable calculation={calculation} />
-
-        <h2 className="text-xl border-b border-gray-700 inline-flex">
-          Cálculo del Impuesto a la Renta
-        </h2>
-        <IncomeTaxCalculationTable calculation={calculation} />
       </div>
     </div>
   );
@@ -178,14 +175,14 @@ function CalculationFields({
   yearlyIncomeAmountInput: UseInputStateReturn<number>;
 }) {
   return (
-    <div className="flex-col space-y-2">
+    <div className="flex-col space-y-2 text-lg">
       <div className="flex items-center w-96 justify-between">
         <label className="mr-4" htmlFor="year">
           Año
         </label>
         <select
           id="year"
-          className="border text-base p-2 w-32 text-right"
+          className="border p-2 w-32 text-right"
           value={yearInput.htmlValue}
           onChange={yearInput.handleChange}
         >
@@ -207,96 +204,12 @@ function CalculationFields({
           <input
             type="number"
             id="yearlyIncomeAmount"
-            className="border text-base p-2 w-32 text-right"
+            className="border p-2 w-32 text-right"
             value={yearlyIncomeAmountInput.htmlValue}
             onChange={yearlyIncomeAmountInput.handleChange}
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-function IncomeTaxCalculationTable({
-  calculation,
-}: {
-  calculation: CalculationData;
-}) {
-  const { taxBracketResults } = calculation;
-
-  const mainFooterRow = (
-    <tr>
-      <th
-        className="text-center font-normal text-xl p-4 bg-yellow-50 border-b"
-        colSpan={taxBracketResults.length}
-      >
-        <p>
-          Impuesto a la Renta:{" "}
-          <em className="text-base text-gray-700">(aprox.)</em>
-        </p>
-        <strong className="block text-3xl p-3">
-          {formatMoney(calculation.totalTaxes)}
-        </strong>
-      </th>
-    </tr>
-  );
-
-  return (
-    <div className="space-y-2">
-      <table className="w-full border">
-        <thead>
-          <tr>
-            {taxBracketResults.map((_, index) => {
-              const backgroundCLassNames = [
-                `bg-yellow-50`,
-                `bg-yellow-100`,
-                `bg-yellow-200`,
-                `bg-yellow-300`,
-                `bg-yellow-400`,
-              ];
-
-              return (
-                <td
-                  key={index}
-                  className={`p-4 ${backgroundCLassNames[index]} text-center`}
-                >
-                  Tramo #{index + 1}
-                </td>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {taxBracketResults.map((result, index) => {
-              return (
-                <td
-                  key={index}
-                  className="p-4 text-center text-xl font-medium border border-collapse"
-                >
-                  {formatMoney(result.taxes)}
-                </td>
-              );
-            })}
-          </tr>
-          <tr>
-            {taxBracketResults.map((result, index) => {
-              return (
-                <td
-                  key={index}
-                  className="px-4 py-2 text-sm text-center border border-collapse"
-                >
-                  {Math.round(result.rate * 100)}% de{" "}
-                  <span className="font-medium">
-                    {formatMoney(result.taxableAmount)}
-                  </span>
-                </td>
-              );
-            })}
-          </tr>
-        </tbody>
-        <tfoot>{mainFooterRow}</tfoot>
-      </table>
     </div>
   );
 }
@@ -311,7 +224,7 @@ function TaxableAmountDistributionTable({
   const mainHeaderRow = (
     <tr>
       <th
-        className="text-center font-normal text-xl p-4 bg-yellow-50 border-b"
+        className="text-center font-normal text-xl p-4 bg-yellow-50"
         colSpan={taxBracketResults.length}
       >
         <span>Monto Imponible:</span>{" "}
@@ -322,25 +235,30 @@ function TaxableAmountDistributionTable({
 
   return (
     <div className="space-y-2">
-      <table className="w-full border">
+      <table className="w-full border border-gray-600">
         <thead>
           {mainHeaderRow}
           <tr>
-            {taxBracketResults.map((_, index) => {
+            {taxBracketResults.map((result, index) => {
               const backgroundCLassNames = [
-                `bg-yellow-50`,
-                `bg-yellow-100`,
-                `bg-yellow-200`,
-                `bg-yellow-300`,
-                `bg-yellow-400`,
+                `bg-teal-300`,
+                `bg-green-300`,
+                `bg-lime-300`,
+                `bg-orange-300`,
+                `bg-red-300`,
               ];
+
+              const backgroundClassName =
+                result.taxableAmount === 0
+                  ? "bg-gray-100"
+                  : backgroundCLassNames[index];
 
               return (
                 <td
                   key={index}
-                  className={`p-4 ${backgroundCLassNames[index]} text-center`}
+                  className="p-0 border border-gray-600 text-gray"
                 >
-                  Tramo #{index + 1}
+                  <div className={`p-4 ${backgroundClassName} text-center`} />
                 </td>
               );
             })}
@@ -352,7 +270,7 @@ function TaxableAmountDistributionTable({
               return (
                 <td
                   key={index}
-                  className="p-4 text-center text-xl font-medium border border-collapse"
+                  className="p-4 text-center text-xl font-medium border-t border-x border-collapse border-gray-600"
                 >
                   {formatMoney(result.taxableAmount)}
                 </td>
@@ -366,14 +284,14 @@ function TaxableAmountDistributionTable({
               return (
                 <td
                   key={index}
-                  className="px-4 py-2 text-sm text-center border border-collapse"
+                  className="px-4 pb-2 text-sm text-center border-x border-collapse border-gray-600"
                 >
                   {result.rangeInUIT.min === 0 ? (
-                    <>Las primeras {taxBracket.amountInUIT} UIT</>
+                    <>Primeras {taxBracket.amountInUIT} UIT</>
                   ) : result.rangeInUIT.max === Infinity ? (
                     <>El monto restante</>
                   ) : (
-                    <>Las siguientes {taxBracket.amountInUIT} UIT</>
+                    <>Siguientes {taxBracket.amountInUIT} UIT</>
                   )}
                   <br />
                   <span>
@@ -388,7 +306,50 @@ function TaxableAmountDistributionTable({
               );
             })}
           </tr>
+          <tr>
+            {taxBracketResults.map((result, index) => {
+              return (
+                <td
+                  key={index}
+                  className="p-4 text-center text-xl font-medium border-t border-x border-collapse border-gray-600"
+                >
+                  {formatMoney(result.taxes)}
+                </td>
+              );
+            })}
+          </tr>
+          <tr>
+            {taxBracketResults.map((result, index) => {
+              return (
+                <td
+                  key={index}
+                  className="px-4 pb-2 text-sm text-center border-b border-x border-collapse border-gray-600"
+                >
+                  {Math.round(result.rate * 100)}% de{" "}
+                  <span className="font-medium">
+                    {formatMoney(result.taxableAmount)}
+                  </span>
+                </td>
+              );
+            })}
+          </tr>
         </tbody>
+        <tfoot>
+          <tr>
+            <td
+              className="text-center font-normal text-xl p-4 bg-yellow-50"
+              colSpan={taxBracketResults.length}
+            >
+              <p>
+                Impuesto a la Renta:{" "}
+                <em className="text-base text-gray-700">(aprox.)</em>
+              </p>
+              <strong className="block text-3xl p-3">
+                {formatMoney(calculation.totalTaxes)}
+              </strong>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
@@ -396,7 +357,7 @@ function TaxableAmountDistributionTable({
 
 function UITInfoBlock({ year }: { year: AvailableYears }) {
   return (
-    <div className="border p-2 mt-4 inline-flex items-center bg-yellow-50">
+    <div className="border border-gray-400 p-2 inline-flex items-center bg-yellow-50">
       <span className="p-2 text-black bg-yellow-400 font-mono mr-3 font-bold">
         FYI
       </span>{" "}
