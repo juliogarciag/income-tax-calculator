@@ -214,6 +214,63 @@ function CalculationFields({
   );
 }
 
+function FullCell({ size, children }: { size: number; children: ReactNode }) {
+  return (
+    <th className="font-normal text-xl p-4 bg-yellow-50" colSpan={size}>
+      {children}
+    </th>
+  );
+}
+
+function ImportantNumberCell({ children }: { children: ReactNode }) {
+  return (
+    <td className="p-4 text-xl font-medium border-t border-x border-collapse border-gray-600">
+      {children}
+    </td>
+  );
+}
+
+function NumberDetailCell({ children }: { children: ReactNode }) {
+  return (
+    <td className="px-4 pb-2 text-sm border-b border-x border-collapse border-gray-600">
+      {children}
+    </td>
+  );
+}
+
+const PROGRESS_BAR_COLORS = [
+  `bg-teal-300`,
+  `bg-green-300`,
+  `bg-lime-300`,
+  `bg-orange-300`,
+  `bg-red-300`,
+];
+const PROGRESS_BAR_DEFAULT_COLOR = "bg-gray-100";
+
+function ProgressBarRow({
+  taxBracketResults,
+}: {
+  taxBracketResults: CalculationData["taxBracketResults"];
+}) {
+  return (
+    <tr>
+      {taxBracketResults.map((result, index) => {
+        const backgroundClassName =
+          result.taxableAmount === 0
+            ? PROGRESS_BAR_DEFAULT_COLOR
+            : PROGRESS_BAR_COLORS[index];
+
+        return (
+          <th
+            key={index}
+            className={`p-4 border border-gray-600 ${backgroundClassName}`}
+          ></th>
+        );
+      })}
+    </tr>
+  );
+}
+
 function TaxableAmountDistributionTable({
   calculation,
 }: {
@@ -221,59 +278,27 @@ function TaxableAmountDistributionTable({
 }) {
   const { taxBracketResults } = calculation;
 
-  const mainHeaderRow = (
-    <tr>
-      <th
-        className="text-center font-normal text-xl p-4 bg-yellow-50"
-        colSpan={taxBracketResults.length}
-      >
-        <span>Monto Imponible:</span>{" "}
-        <strong>{formatMoney(calculation.taxableAmounts.finalAmount)}</strong>
-      </th>
-    </tr>
-  );
-
   return (
     <div className="space-y-2">
-      <table className="w-full border border-gray-600">
+      <table className="w-full border border-gray-600 text-center">
         <thead>
-          {mainHeaderRow}
           <tr>
-            {taxBracketResults.map((result, index) => {
-              const backgroundCLassNames = [
-                `bg-teal-300`,
-                `bg-green-300`,
-                `bg-lime-300`,
-                `bg-orange-300`,
-                `bg-red-300`,
-              ];
-
-              const backgroundClassName =
-                result.taxableAmount === 0
-                  ? "bg-gray-100"
-                  : backgroundCLassNames[index];
-
-              return (
-                <td
-                  key={index}
-                  className="p-0 border border-gray-600 text-gray"
-                >
-                  <div className={`p-4 ${backgroundClassName} text-center`} />
-                </td>
-              );
-            })}
+            <FullCell size={taxBracketResults.length}>
+              <span>Monto Imponible:</span>{" "}
+              <strong>
+                {formatMoney(calculation.taxableAmounts.finalAmount)}
+              </strong>
+            </FullCell>
           </tr>
+          <ProgressBarRow taxBracketResults={taxBracketResults} />
         </thead>
         <tbody>
           <tr>
             {taxBracketResults.map((result, index) => {
               return (
-                <td
-                  key={index}
-                  className="p-4 text-center text-xl font-medium border-t border-x border-collapse border-gray-600"
-                >
+                <ImportantNumberCell key={index}>
                   {formatMoney(result.taxableAmount)}
-                </td>
+                </ImportantNumberCell>
               );
             })}
           </tr>
@@ -282,10 +307,7 @@ function TaxableAmountDistributionTable({
               const taxBracket = TAX_BRACKETS_TABLE[index];
 
               return (
-                <td
-                  key={index}
-                  className="px-4 pb-2 text-sm text-center border-x border-collapse border-gray-600"
-                >
+                <NumberDetailCell key={index}>
                   {result.rangeInUIT.min === 0 ? (
                     <>Primeras {taxBracket.amountInUIT} UIT</>
                   ) : result.rangeInUIT.max === Infinity ? (
@@ -302,44 +324,35 @@ function TaxableAmountDistributionTable({
                       </>
                     )}
                   </span>
-                </td>
+                </NumberDetailCell>
               );
             })}
           </tr>
           <tr>
             {taxBracketResults.map((result, index) => {
               return (
-                <td
-                  key={index}
-                  className="p-4 text-center text-xl font-medium border-t border-x border-collapse border-gray-600"
-                >
+                <ImportantNumberCell key={index}>
                   {formatMoney(result.taxes)}
-                </td>
+                </ImportantNumberCell>
               );
             })}
           </tr>
           <tr>
             {taxBracketResults.map((result, index) => {
               return (
-                <td
-                  key={index}
-                  className="px-4 pb-2 text-sm text-center border-b border-x border-collapse border-gray-600"
-                >
+                <NumberDetailCell key={index}>
                   {Math.round(result.rate * 100)}% de{" "}
                   <span className="font-medium">
                     {formatMoney(result.taxableAmount)}
                   </span>
-                </td>
+                </NumberDetailCell>
               );
             })}
           </tr>
         </tbody>
         <tfoot>
           <tr>
-            <td
-              className="text-center font-normal text-xl p-4 bg-yellow-50"
-              colSpan={taxBracketResults.length}
-            >
+            <FullCell size={taxBracketResults.length}>
               <p>
                 Impuesto a la Renta:{" "}
                 <em className="text-base text-gray-700">(aprox.)</em>
@@ -347,7 +360,7 @@ function TaxableAmountDistributionTable({
               <strong className="block text-3xl p-3">
                 {formatMoney(calculation.totalTaxes)}
               </strong>
-            </td>
+            </FullCell>
           </tr>
         </tfoot>
       </table>
