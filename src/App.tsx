@@ -381,6 +381,9 @@ function UITInfoBlock({ year }: { year: AvailableYears }) {
 }
 
 function formatMoney(amount: number) {
+  if (amount === 0) {
+    return `S/ 0`;
+  }
   if (amount < 0) {
     return `- S/ ${Math.abs(amount).toLocaleString()}`;
   }
