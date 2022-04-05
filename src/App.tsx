@@ -235,7 +235,7 @@ function IncomeTaxCalculationTable({
           <em className="text-base text-gray-700">(aprox.)</em>
         </p>
         <strong className="block text-3xl p-3">
-          {formatMoney(calculation.taxableAmounts.finalAmount)}
+          {formatMoney(calculation.totalTaxes)}
         </strong>
       </th>
     </tr>
