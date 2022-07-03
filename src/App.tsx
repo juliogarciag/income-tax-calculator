@@ -1,9 +1,11 @@
 import clsx from "clsx";
-import React, { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useReducer } from "react";
+import { v4 as uuidv4 } from "uuid";
 import useIncomeTaxCalculation, {
   CalculationData,
 } from "./useIncomeTaxCalculation";
 import useInputState, { UseInputStateReturn } from "./useInputState";
+import useToggle from "./useToggle";
 
 const TAX_BRACKETS_TABLE = [
   { amountInUIT: 5, rate: 0.08 },
@@ -31,10 +33,9 @@ const AVAILABLE_YEARS = Object.keys(UIT_BY_YEAR);
 type AvailableYears = keyof typeof UIT_BY_YEAR;
 
 function App() {
-  const yearlyIncomeAmountInput = useInputState(
-    Number(process.env.REACT_APP_TEST_YEARLY_INCOME_VALUE ?? 0),
-  );
+  const yearlyIncomeAmountInput = useInputState<number>(0);
   const yearInput = useInputState<AvailableYears>("2021");
+  const usingBrekdownToggle = useToggle(false);
 
   const calculation = useIncomeTaxCalculation({
     uit: UIT_BY_YEAR[yearInput.value],
@@ -49,6 +50,7 @@ function App() {
       <CalculationFields
         yearInput={yearInput}
         yearlyIncomeAmountInput={yearlyIncomeAmountInput}
+        usingBrekdownToggle={usingBrekdownToggle}
       />
       <div className="w-full h-px border-b border-gray-300" />
       <UITInfoBlock year={yearInput.value} />
@@ -170,10 +172,16 @@ function TaxDeductions({ calculation }: { calculation: CalculationData }) {
 function CalculationFields({
   yearInput,
   yearlyIncomeAmountInput,
+  usingBrekdownToggle,
 }: {
   yearInput: UseInputStateReturn<AvailableYears>;
   yearlyIncomeAmountInput: UseInputStateReturn<number>;
+  usingBrekdownToggle: ReturnType<typeof useToggle>;
 }) {
+  const toggleInputBreakdown = () => {
+    usingBrekdownToggle.toggle();
+  };
+
   return (
     <div className="flex-col space-y-2 text-lg">
       <div className="flex items-center w-96 justify-between">
@@ -195,7 +203,7 @@ function CalculationFields({
           })}
         </select>
       </div>
-      <div className="flex items-center w-96 justify-between">
+      <div className="flex items-center w-160 justify-between">
         <label className="mr-4" htmlFor="yearlyIncomeAmount">
           Ingresos del año {yearInput.value}
         </label>
@@ -207,8 +215,233 @@ function CalculationFields({
             className="border p-2 w-32 text-right"
             value={yearlyIncomeAmountInput.htmlValue}
             onChange={yearlyIncomeAmountInput.handleChange}
+            disabled={usingBrekdownToggle.value}
           />
         </div>
+        <div className="w-56">
+          <button
+            className="text-sm relative right-4 border border-gray-400 px-2 py-1 bg-gray-100"
+            onClick={toggleInputBreakdown}
+          >
+            {usingBrekdownToggle.value ? (
+              <>esconder desglose</>
+            ) : (
+              <>usar desglose</>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div
+        className={clsx("py-3 border border-gray-400 bg-yellow-50", {
+          hidden: !usingBrekdownToggle.value,
+        })}
+      >
+        <Breakdown
+          initialAmount={yearlyIncomeAmountInput.value}
+          onChange={({ totalAmount }) => {
+            yearlyIncomeAmountInput.updateValue(
+              totalAmount.toString(),
+              totalAmount,
+            );
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+type BreakdownItem = {
+  amount: number;
+  label: string;
+};
+
+type BreakdownState = {
+  [id: string]: BreakdownItem;
+};
+
+type BreakdownAction =
+  | {
+      type: "UPDATE_LABEL";
+      id: string;
+      label: string;
+    }
+  | {
+      type: "UPDATE_AMOUNT";
+      id: string;
+      amount: number;
+    }
+  | {
+      type: "ADD_ITEM";
+      label: string;
+      amount: number;
+    }
+  | {
+      type: "DUPLICATE_ITEM";
+      id: string;
+    }
+  | {
+      type: "DELETE_ITEM";
+      id: string;
+    };
+
+function breakdownReducer(
+  state: BreakdownState,
+  action: BreakdownAction,
+): BreakdownState {
+  switch (action.type) {
+    case "ADD_ITEM":
+      return {
+        ...state,
+        [uuidv4()]: {
+          label: action.label,
+          amount: action.amount,
+        },
+      };
+    case "UPDATE_AMOUNT":
+      return {
+        ...state,
+        [action.id]: {
+          ...state[action.id],
+          amount: action.amount,
+        },
+      };
+    case "UPDATE_LABEL":
+      return {
+        ...state,
+        [action.id]: {
+          ...state[action.id],
+          label: action.label,
+        },
+      };
+    case "DUPLICATE_ITEM":
+      return {
+        ...state,
+        [uuidv4()]: {
+          ...state[action.id],
+        },
+      };
+    case "DELETE_ITEM":
+      const newState = { ...state };
+      delete newState[action.id];
+      return newState;
+    default:
+      return state;
+  }
+}
+
+function Breakdown({
+  initialAmount,
+  onChange,
+}: {
+  initialAmount: number;
+  onChange: (options: { totalAmount: number }) => void;
+}) {
+  const [items, dispatch] = useReducer(breakdownReducer, {
+    [uuidv4()]: { label: "Ingreso", amount: initialAmount },
+  });
+
+  const totalAmount = useMemo(() => {
+    return Object.values(items).reduce((total, item) => total + item.amount, 0);
+  }, [items]);
+
+  useEffect(
+    function emitChangeEvent() {
+      onChange({ totalAmount });
+    },
+    [totalAmount, onChange],
+  );
+
+  return (
+    <ul className="space-y-2">
+      {Object.entries(items).map(([id, item], index) => {
+        return (
+          <li key={id}>
+            <Item
+              id={id}
+              itemNumber={index + 1}
+              item={item}
+              updateLabel={(id: string, label: string) => {
+                dispatch({ type: "UPDATE_LABEL", id, label });
+              }}
+              updateAmount={(id: string, amount: number) => {
+                dispatch({ type: "UPDATE_AMOUNT", id, amount });
+              }}
+              duplicateItem={(id: string) => {
+                dispatch({ type: "DUPLICATE_ITEM", id });
+              }}
+              deleteItem={(id: string) => {
+                dispatch({ type: "DELETE_ITEM", id });
+              }}
+            />
+          </li>
+        );
+      })}
+      <li>
+        <button
+          onClick={() => {
+            dispatch({ type: "ADD_ITEM", label: "Ingreso", amount: 0 });
+          }}
+          className="mx-2 text-sm border border-gray-400 px-2 py-1 bg-yellow-100 mt-3"
+        >
+          Agregar Entrada
+        </button>
+      </li>
+    </ul>
+  );
+}
+
+function Item({
+  id,
+  item,
+  itemNumber,
+  updateLabel,
+  updateAmount,
+  duplicateItem,
+  deleteItem,
+}: {
+  id: string;
+  item: BreakdownItem;
+  itemNumber: number;
+  updateLabel: (id: string, label: string) => void;
+  updateAmount: (id: string, amount: number) => void;
+  duplicateItem: (id: string) => void;
+  deleteItem: (id: string) => void;
+}) {
+  const itemAmount = useInputState(item.amount);
+
+  useEffect(() => {
+    updateAmount(id, itemAmount.value);
+  }, [itemAmount.value, updateAmount, id]);
+
+  return (
+    <div className="flex flex-row text-sm items-center w-160">
+      <div className="ml-3">{itemNumber}</div>
+      <input
+        type="text"
+        className="border px-2 py-1 ml-2"
+        value={item.label}
+        onChange={(event) => updateLabel(id, event.target.value)}
+      />
+      <input
+        type="number"
+        className="w-32 border px-2 py-1 ml-auto text-right"
+        value={itemAmount.htmlValue}
+        onChange={itemAmount.handleChange}
+      />
+      <div className="w-64">
+        <button
+          className="ml-4 px-2 py-1 border bg-yellow-100 border-gray-400"
+          onClick={() => duplicateItem(id)}
+        >
+          Duplicar
+        </button>
+        <button
+          className="ml-4 px-2 py-1  bg-gray-500 text-white border-gray-400"
+          onClick={() => deleteItem(id)}
+        >
+          Remover
+        </button>
       </div>
     </div>
   );

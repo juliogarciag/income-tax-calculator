@@ -23,6 +23,11 @@ function useInputState<Value extends string | number | Date>(
     }
   }, [value, rawValue]);
 
+  const updateValue = useCallback((rawValue: string, value: Value) => {
+    setRawValue(rawValue);
+    setValue(value);
+  }, []);
+
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const inputType = event.target.type;
@@ -55,6 +60,7 @@ function useInputState<Value extends string | number | Date>(
     value,
     htmlValue,
     handleChange,
+    updateValue,
   };
 }
 
