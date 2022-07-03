@@ -1,6 +1,5 @@
 import clsx from "clsx";
 import { ReactNode, useEffect, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
 import useIncomeTaxCalculation, {
   CalculationData,
 } from "./useIncomeTaxCalculation";
@@ -182,11 +181,11 @@ function CalculationFields() {
 
   useEffect(() => {
     updateYear(yearInput.value);
-  }, [yearInput.value]);
+  }, [yearInput.value, updateYear]);
 
   useEffect(() => {
     updateYearlyIncome(yearlyIncomeAmountInput.value);
-  }, [yearlyIncomeAmountInput.value]);
+  }, [yearlyIncomeAmountInput.value, updateYearlyIncome]);
 
   return (
     <div className="flex-col space-y-2 text-lg">
@@ -264,7 +263,7 @@ function Breakdown() {
     function syncTotalAmountAndYearlyIncome() {
       updateYearlyIncome(totalAmount);
     },
-    [totalAmount],
+    [totalAmount, updateYearlyIncome],
   );
 
   return (
