@@ -1,11 +1,11 @@
 import clsx from "clsx";
-import { ReactNode, useEffect, useMemo, useReducer } from "react";
+import { ReactNode, useEffect, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import useIncomeTaxCalculation, {
   CalculationData,
 } from "./useIncomeTaxCalculation";
-import useInputState, { UseInputStateReturn } from "./useInputState";
-import useToggle from "./useToggle";
+import useInputState from "./useInputState";
+import useStore, { BreakdownItem } from "./useStore";
 
 const TAX_BRACKETS_TABLE = [
   { amountInUIT: 5, rate: 0.08 },
@@ -15,7 +15,7 @@ const TAX_BRACKETS_TABLE = [
   { amountInUIT: Infinity, rate: 0.3 },
 ];
 
-const UIT_BY_YEAR = {
+export const UIT_BY_YEAR = {
   "2012": 3650,
   "2013": 3700,
   "2014": 3800,
@@ -33,27 +33,26 @@ const AVAILABLE_YEARS = Object.keys(UIT_BY_YEAR);
 type AvailableYears = keyof typeof UIT_BY_YEAR;
 
 function App() {
-  const yearlyIncomeAmountInput = useInputState<number>(0);
-  const yearInput = useInputState<AvailableYears>("2021");
-  const usingBrekdownToggle = useToggle(false);
+  const year = useStore((state) => state.year);
+  const yearlyIncome = useStore((state) => state.yearlyIncome);
 
   const calculation = useIncomeTaxCalculation({
-    uit: UIT_BY_YEAR[yearInput.value],
-    grossYearlyIncome: yearlyIncomeAmountInput.value,
+    uit: UIT_BY_YEAR[year],
+    grossYearlyIncome: yearlyIncome,
     taxBracketsTable: TAX_BRACKETS_TABLE,
   });
+
+  if (!useStore.persist.hasHydrated()) {
+    return <>loading...</>;
+  }
 
   return (
     <div className="p-4 max-w-4xl mx-auto flex-row space-y-4">
       <h1 className="text-3xl">Calculadora del Impuesto a la Renta en 🇵🇪</h1>
       <div className="w-full h-px border-t border-gray-300" />
-      <CalculationFields
-        yearInput={yearInput}
-        yearlyIncomeAmountInput={yearlyIncomeAmountInput}
-        usingBrekdownToggle={usingBrekdownToggle}
-      />
+      <CalculationFields />
       <div className="w-full h-px border-b border-gray-300" />
-      <UITInfoBlock year={yearInput.value} />
+      <UITInfoBlock year={year} />
       <div className="border border-gray-400 p-4 space-y-6">
         <h2 className="text-xl border-b border-gray-700 inline-flex">
           Deducciones
@@ -169,18 +168,25 @@ function TaxDeductions({ calculation }: { calculation: CalculationData }) {
   );
 }
 
-function CalculationFields({
-  yearInput,
-  yearlyIncomeAmountInput,
-  usingBrekdownToggle,
-}: {
-  yearInput: UseInputStateReturn<AvailableYears>;
-  yearlyIncomeAmountInput: UseInputStateReturn<number>;
-  usingBrekdownToggle: ReturnType<typeof useToggle>;
-}) {
-  const toggleInputBreakdown = () => {
-    usingBrekdownToggle.toggle();
-  };
+function CalculationFields() {
+  const toggleUsingBreakdown = useStore((state) => state.toggleUsingBreakdown);
+  const updateYear = useStore((state) => state.updateYear);
+  const updateYearlyIncome = useStore((state) => state.updateYearlyIncome);
+  const year = useStore((state) => state.year);
+  const yearlyIncome = useStore((state) => state.yearlyIncome);
+
+  const usingBreakdown = useStore((state) => state.usingBrekdown);
+
+  const yearlyIncomeAmountInput = useInputState<number>(yearlyIncome);
+  const yearInput = useInputState<AvailableYears>(year);
+
+  useEffect(() => {
+    updateYear(yearInput.value);
+  }, [yearInput.value]);
+
+  useEffect(() => {
+    updateYearlyIncome(yearlyIncomeAmountInput.value);
+  }, [yearlyIncomeAmountInput.value]);
 
   return (
     <div className="flex-col space-y-2 text-lg">
@@ -213,143 +219,52 @@ function CalculationFields({
             type="number"
             id="yearlyIncomeAmount"
             className="border p-2 w-32 text-right"
-            value={yearlyIncomeAmountInput.htmlValue}
-            onChange={yearlyIncomeAmountInput.handleChange}
-            disabled={usingBrekdownToggle.value}
+            {...(usingBreakdown
+              ? {
+                  value: yearlyIncome,
+                }
+              : {
+                  value: yearlyIncomeAmountInput.htmlValue,
+                  onChange: yearlyIncomeAmountInput.handleChange,
+                })}
+            disabled={usingBreakdown}
           />
         </div>
         <div className="w-56">
           <button
             className="text-sm relative right-4 border border-gray-400 px-2 py-1 bg-gray-100"
-            onClick={toggleInputBreakdown}
+            onClick={toggleUsingBreakdown}
           >
-            {usingBrekdownToggle.value ? (
-              <>esconder desglose</>
-            ) : (
-              <>usar desglose</>
-            )}
+            {usingBreakdown ? <>esconder desglose</> : <>usar desglose</>}
           </button>
         </div>
       </div>
 
       <div
         className={clsx("py-3 border border-gray-400 bg-yellow-50", {
-          hidden: !usingBrekdownToggle.value,
+          hidden: !usingBreakdown,
         })}
       >
-        <Breakdown
-          initialAmount={yearlyIncomeAmountInput.value}
-          onChange={({ totalAmount }) => {
-            yearlyIncomeAmountInput.updateValue(
-              totalAmount.toString(),
-              totalAmount,
-            );
-          }}
-        />
+        <Breakdown />
       </div>
     </div>
   );
 }
 
-type BreakdownItem = {
-  amount: number;
-  label: string;
-};
-
-type BreakdownState = {
-  [id: string]: BreakdownItem;
-};
-
-type BreakdownAction =
-  | {
-      type: "UPDATE_LABEL";
-      id: string;
-      label: string;
-    }
-  | {
-      type: "UPDATE_AMOUNT";
-      id: string;
-      amount: number;
-    }
-  | {
-      type: "ADD_ITEM";
-      label: string;
-      amount: number;
-    }
-  | {
-      type: "DUPLICATE_ITEM";
-      id: string;
-    }
-  | {
-      type: "DELETE_ITEM";
-      id: string;
-    };
-
-function breakdownReducer(
-  state: BreakdownState,
-  action: BreakdownAction,
-): BreakdownState {
-  switch (action.type) {
-    case "ADD_ITEM":
-      return {
-        ...state,
-        [uuidv4()]: {
-          label: action.label,
-          amount: action.amount,
-        },
-      };
-    case "UPDATE_AMOUNT":
-      return {
-        ...state,
-        [action.id]: {
-          ...state[action.id],
-          amount: action.amount,
-        },
-      };
-    case "UPDATE_LABEL":
-      return {
-        ...state,
-        [action.id]: {
-          ...state[action.id],
-          label: action.label,
-        },
-      };
-    case "DUPLICATE_ITEM":
-      return {
-        ...state,
-        [uuidv4()]: {
-          ...state[action.id],
-        },
-      };
-    case "DELETE_ITEM":
-      const newState = { ...state };
-      delete newState[action.id];
-      return newState;
-    default:
-      return state;
-  }
-}
-
-function Breakdown({
-  initialAmount,
-  onChange,
-}: {
-  initialAmount: number;
-  onChange: (options: { totalAmount: number }) => void;
-}) {
-  const [items, dispatch] = useReducer(breakdownReducer, {
-    [uuidv4()]: { label: "Ingreso", amount: initialAmount },
-  });
+function Breakdown() {
+  const items = useStore((state) => state.breakdownItems);
+  const addBreakdownItem = useStore((state) => state.addBreakdownItem);
+  const updateYearlyIncome = useStore((state) => state.updateYearlyIncome);
 
   const totalAmount = useMemo(() => {
     return Object.values(items).reduce((total, item) => total + item.amount, 0);
   }, [items]);
 
   useEffect(
-    function emitChangeEvent() {
-      onChange({ totalAmount });
+    function syncTotalAmountAndYearlyIncome() {
+      updateYearlyIncome(totalAmount);
     },
-    [totalAmount, onChange],
+    [totalAmount],
   );
 
   return (
@@ -357,30 +272,14 @@ function Breakdown({
       {Object.entries(items).map(([id, item], index) => {
         return (
           <li key={id}>
-            <Item
-              id={id}
-              itemNumber={index + 1}
-              item={item}
-              updateLabel={(id: string, label: string) => {
-                dispatch({ type: "UPDATE_LABEL", id, label });
-              }}
-              updateAmount={(id: string, amount: number) => {
-                dispatch({ type: "UPDATE_AMOUNT", id, amount });
-              }}
-              duplicateItem={(id: string) => {
-                dispatch({ type: "DUPLICATE_ITEM", id });
-              }}
-              deleteItem={(id: string) => {
-                dispatch({ type: "DELETE_ITEM", id });
-              }}
-            />
+            <Item id={id} itemNumber={index + 1} item={item} />
           </li>
         );
       })}
       <li>
         <button
           onClick={() => {
-            dispatch({ type: "ADD_ITEM", label: "Ingreso", amount: 0 });
+            addBreakdownItem({ label: "Ingreso", amount: 0 });
           }}
           className="mx-2 text-sm border border-gray-400 px-2 py-1 bg-yellow-100 mt-3"
         >
@@ -395,24 +294,25 @@ function Item({
   id,
   item,
   itemNumber,
-  updateLabel,
-  updateAmount,
-  duplicateItem,
-  deleteItem,
 }: {
   id: string;
   item: BreakdownItem;
   itemNumber: number;
-  updateLabel: (id: string, label: string) => void;
-  updateAmount: (id: string, amount: number) => void;
-  duplicateItem: (id: string) => void;
-  deleteItem: (id: string) => void;
 }) {
+  const updateItem = useStore((state) => state.updateBreakdownItem);
+  const duplicateItem = useStore((state) => state.duplicateBreakdownItem);
+  const deleteItem = useStore((state) => state.deleteBreakdownItem);
+
   const itemAmount = useInputState(item.amount);
+  const itemLabel = useInputState(item.label);
 
   useEffect(() => {
-    updateAmount(id, itemAmount.value);
-  }, [itemAmount.value, updateAmount, id]);
+    updateItem(id, { amount: itemAmount.value });
+  }, [updateItem, id, itemAmount.value]);
+
+  useEffect(() => {
+    updateItem(id, { label: itemLabel.value });
+  }, [updateItem, id, itemLabel.value]);
 
   return (
     <div className="flex flex-row text-sm items-center w-160">
@@ -420,8 +320,8 @@ function Item({
       <input
         type="text"
         className="border px-2 py-1 ml-2"
-        value={item.label}
-        onChange={(event) => updateLabel(id, event.target.value)}
+        value={itemLabel.htmlValue}
+        onChange={itemLabel.handleChange}
       />
       <input
         type="number"
